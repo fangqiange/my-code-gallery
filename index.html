@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CodeSnip - 云端同步版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- 引入 Supabase 官方工具包 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* 样式保持不变，为了节省篇幅，直接复用之前的样式 */
         :root { --primary: #2563eb; --bg: #f8fafc; --surface: #ffffff; --border: #e2e8f0; --text: #1e293b; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
@@ -95,25 +93,25 @@
 
 <script>
     // -----------------------------------------------------------
-    // ⚠️ 步骤 4：请将你的 Supabase URL 和 Key 填入下方引号中
+    // ⚠️ 修复：请填入正确的 SUPABASE URL 和 KEY
+    // 1. URL 格式是 https://xxxx.supabase.co
+    // 2. KEY 格式是 eyJhbGciOiJIUzI1NiIsInR5cCI6Ikp... (非常长)
     // -----------------------------------------------------------
-    const SUPABASE_URL = 'sb_publishable_N0bmeko2jzbi9TO9IT4CHQ_59rsBfBE'; 
-    const SUPABASE_KEY = 'sb_secret_B93VisZz8IWw8YCgUlnWRQ_OUI31zRm'; 
+    const SUPABASE_URL = 'https://pcqksshapebisaacksph.supabase.co'; 
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjcWtzc2hhcGViaXNhYWNrc3BoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwOTYwMTgsImV4cCI6MjA4MjY3MjAxOH0.YihH3R6F4NevngbqLbzcRqy6LpbQuflWYfZvFnF7NT4'; 
     // -----------------------------------------------------------
 
-    // 初始化 Supabase
     let supabase;
     try {
-        if (!SUPABASE_URL || !SUPABASE_KEY) {
-            console.warn('请先填写 Supabase 配置');
-        } else {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        if (!SUPABASE_URL.startsWith('http')) {
+            console.warn('Supabase URL 格式似乎不对，请检查');
         }
-    } catch (e) { console.error(e); }
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } catch (e) { 
+        console.error('Supabase 初始化失败:', e);
+    }
 
-    // 缓存数据，减少请求
     let cachedSnippets = [];
-
     const inputs = {
         html: document.querySelector('#input-html textarea'),
         css: document.querySelector('#input-css textarea'),
@@ -138,162 +136,3 @@
             timeout = setTimeout(updatePreview, 800);
         });
     });
-
-    // --- 核心修改：保存到 Supabase ---
-    async function saveComponent() {
-        if (!supabase) return alert('请先在代码中配置 Supabase URL 和 Key');
-        
-        const btn = document.getElementById('save-btn');
-        btn.innerText = '正在上传...';
-        btn.disabled = true;
-
-        const title = document.getElementById('comp-title').value || '未命名组件';
-        const tags = document.getElementById('comp-tags').value;
-        
-        // 截图
-        const previewEl = document.getElementById('preview-container');
-        let thumbData = '';
-        try {
-            const canvas = await html2canvas(previewEl, { logging: false, scale: 0.5 });
-            thumbData = canvas.toDataURL('image/jpeg', 0.6);
-        } catch (e) { console.error(e); }
-
-        // 插入数据库
-        const { error } = await supabase
-            .from('snippets')
-            .insert([{ 
-                title: title,
-                tags: tags,
-                html: inputs.html.value,
-                css: inputs.css.value,
-                js: inputs.js.value,
-                thumbnail: thumbData
-            }]);
-
-        btn.innerText = '💾 保存到云端';
-        btn.disabled = false;
-
-        if (error) {
-            console.error(error);
-            alert('保存失败，请检查控制台 (通常是 RLS 没关)');
-        } else {
-            showToast('✅ 已同步到云端');
-            switchView('gallery');
-        }
-    }
-
-    // --- 核心修改：从 Supabase 读取 ---
-    async function renderGallery() {
-        if (!supabase) return;
-        const grid = document.getElementById('gallery-grid');
-        
-        // 如果是从编辑器切回来，或者第一次加载，就去拉取数据
-        // 简单起见，每次都拉取最新
-        document.getElementById('count-display').innerText = '刷新中...';
-        
-        const { data, error } = await supabase
-            .from('snippets')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            return alert('读取失败');
-        }
-
-        cachedSnippets = data; // 更新本地缓存
-        document.getElementById('count-display').innerText = data.length;
-        
-        grid.innerHTML = data.map(item => `
-            <div class="card">
-                <div class="card-thumb" style="background-image: url(${item.thumbnail || ''})">
-                    <div class="card-thumb-overlay">
-                        <button class="nav-btn" onclick="loadComponent(${item.id})">✏️ 查看</button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="card-title">${item.title}</div>
-                    <div class="card-tags">
-                        ${(item.tags||'').split(/,|，/).map(t => t.trim() ? `<span class="tag">${t.trim()}</span>` : '').join('')}
-                    </div>
-                    <div class="card-actions">
-                        <button class="btn-sm" onclick="copyCode(${item.id}, 'all')">📋 复制</button>
-                        <button class="btn-sm" style="color:red" onclick="deleteComponent(${item.id})">🗑️</button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    function copyCode(id, type) {
-        const item = cachedSnippets.find(i => i.id === id);
-        if(!item) return;
-        const content = `${item.html}\n<style>\n${item.css}\n</style>\n<script>\n${item.js}\n<\/script>`;
-        navigator.clipboard.writeText(content).then(() => showToast('已复制'));
-    }
-
-    function loadComponent(id) {
-        const item = cachedSnippets.find(i => i.id === id);
-        if(item) {
-            inputs.html.value = item.html;
-            inputs.css.value = item.css;
-            inputs.js.value = item.js;
-            document.getElementById('comp-title').value = item.title;
-            document.getElementById('comp-tags').value = item.tags;
-            updatePreview();
-            switchView('editor');
-        }
-    }
-
-    async function deleteComponent(id) {
-        if(!confirm('确定删除？这是云端删除，无法撤销。')) return;
-        
-        const { error } = await supabase.from('snippets').delete().eq('id', id);
-        if (error) {
-            alert('删除失败');
-        } else {
-            showToast('已删除');
-            renderGallery();
-        }
-    }
-
-    // UI 逻辑
-    function switchTab(type) {
-        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.code-area').forEach(el => el.classList.remove('active'));
-        const tabs = ['html', 'css', 'js'];
-        const index = tabs.indexOf(type);
-        document.querySelectorAll('.tab')[index].classList.add('active');
-        document.querySelectorAll('.code-area')[index].classList.add('active');
-    }
-
-    function switchView(view) {
-        document.querySelectorAll('.view-section').forEach(el => {
-            el.classList.remove('active');
-            el.style.display = 'none';
-        });
-        const target = document.getElementById(view + '-view');
-        target.classList.add('active');
-        target.style.display = 'flex';
-        if(view === 'gallery') renderGallery();
-    }
-
-    function resetEditor() {
-        inputs.html.value = ''; inputs.css.value = ''; inputs.js.value = '';
-        document.getElementById('comp-title').value = '';
-        document.getElementById('comp-tags').value = '';
-        updatePreview();
-        switchTab('html');
-    }
-
-    function showToast(msg) {
-        const t = document.getElementById('toast');
-        t.innerText = msg;
-        t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), 2000);
-    }
-    
-    // 初始化
-    updatePreview();
-</script>
-</body>
-</html>
