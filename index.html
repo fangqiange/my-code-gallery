@@ -3,217 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CodeSnip - 我的组件库</title>
-    <!-- 引入 html2canvas 用于自动截图 -->
+    <title>CodeSnip - 云端同步版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- 引入 Supabase 官方工具包 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root {
-            --primary: #2563eb;
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --border: #e2e8f0;
-            --text: #1e293b;
-        }
-
+        /* 样式保持不变，为了节省篇幅，直接复用之前的样式 */
+        :root { --primary: #2563eb; --bg: #f8fafc; --surface: #ffffff; --border: #e2e8f0; --text: #1e293b; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
-
-        /* 顶部导航 */
-        header {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 0 20px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+        header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
         h1 { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
-        .nav-btn {
-            padding: 8px 16px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: white;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-        }
+        .nav-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
         .nav-btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
         .nav-btn:hover { opacity: 0.9; }
-
-        /* 主布局 */
         main { flex: 1; display: flex; overflow: hidden; position: relative; }
-
-        /* 视图切换：编辑器 vs 画廊 */
-        .view-section {
-            width: 100%;
-            height: 100%;
-            display: none; /* 默认隐藏 */
-            overflow-y: auto;
-        }
+        .view-section { width: 100%; height: 100%; display: none; overflow-y: auto; }
         .view-section.active { display: flex; }
-
-        /* --- 编辑器视图 --- */
         #editor-view { flex-direction: row; }
-        
-        /* 左侧输入区 */
-        .editor-pane {
-            width: 40%;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid var(--border);
-            background: white;
-        }
-        
+        .editor-pane { width: 40%; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: white; }
         .tabs { display: flex; border-bottom: 1px solid var(--border); background: #f1f5f9; }
-        .tab {
-            flex: 1;
-            padding: 10px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 0.9rem;
-            color: #64748b;
-        }
+        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-size: 0.9rem; color: #64748b; }
         .tab.active { background: white; color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--primary); }
-
         .code-area { flex: 1; position: relative; display: none; }
         .code-area.active { display: block; }
-        textarea {
-            width: 100%;
-            height: 100%;
-            border: none;
-            padding: 15px;
-            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-            font-size: 14px;
-            line-height: 1.5;
-            resize: none;
-            outline: none;
-            background: #fafafa;
-        }
-
+        textarea { width: 100%; height: 100%; border: none; padding: 15px; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; font-size: 14px; line-height: 1.5; resize: none; outline: none; background: #fafafa; }
         .meta-input { padding: 15px; border-top: 1px solid var(--border); background: white; }
-        .meta-input input {
-            width: 100%;
-            margin-bottom: 10px;
-            padding: 8px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-        }
-
-        /* 右侧预览区 */
-        .preview-pane {
-            flex: 1;
-            background: #e2e8f0; /* 深色背景突出组件 */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            position: relative;
-        }
-        
-        /* 模拟手机/卡片容器 */
-        #preview-container {
-            background: white;
-            width: 100%;
-            height: 100%;
-            max-width: 800px;
-            max-height: 600px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
+        .meta-input input { width: 100%; margin-bottom: 10px; padding: 8px; border: 1px solid var(--border); border-radius: 4px; }
+        .preview-pane { flex: 1; background: #e2e8f0; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; }
+        #preview-container { background: white; width: 100%; height: 100%; max-width: 800px; max-height: 600px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow: hidden; }
         iframe { width: 100%; height: 100%; border: none; }
-
-        /* --- 画廊视图 --- */
-        #gallery-view {
-            padding: 30px;
-            background: #f8fafc;
-            display: none; /* Flex controlled by JS */
-            flex-direction: column;
-        }
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 25px;
-            width: 100%;
-        }
-
-        .card {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
-            border: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-        }
+        #gallery-view { padding: 30px; background: #f8fafc; display: none; flex-direction: column; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; width: 100%; }
+        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: transform 0.2s; border: 1px solid var(--border); display: flex; flex-direction: column; }
         .card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
-        
-        .card-thumb {
-            height: 180px;
-            background: #eee;
-            background-size: cover;
-            background-position: center;
-            position: relative;
-        }
-        .card-thumb-overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
+        .card-thumb { height: 180px; background: #eee; background-size: cover; background-position: center; position: relative; }
+        .card-thumb-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
         .card:hover .card-thumb-overlay { opacity: 1; }
-        
         .card-body { padding: 15px; flex: 1; display: flex; flex-direction: column; }
         .card-title { font-weight: 600; margin-bottom: 8px; }
         .card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
         .tag { background: #eff6ff; color: var(--primary); padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; }
-        
         .card-actions { margin-top: auto; display: flex; gap: 10px; }
-        .btn-sm {
-            flex: 1;
-            padding: 6px;
-            font-size: 0.8rem;
-            border: 1px solid var(--border);
-            background: white;
-            border-radius: 4px;
-            cursor: pointer;
-        }
+        .btn-sm { flex: 1; padding: 6px; font-size: 0.8rem; border: 1px solid var(--border); background: white; border-radius: 4px; cursor: pointer; }
         .btn-sm:hover { background: #f1f5f9; }
-
-        /* Toast 提示 */
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #1e293b;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 6px;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s;
-        }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #1e293b; color: white; padding: 10px 20px; border-radius: 6px; opacity: 0; transform: translateY(20px); transition: all 0.3s; }
         .toast.show { opacity: 1; transform: translateY(0); }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>CodeSnip ⚡</h1>
+    <h1>CodeSnip ☁️</h1>
     <div style="display: flex; gap: 10px;">
-        <button class="nav-btn" onclick="switchView('gallery')">📂 我的组件库</button>
+        <button class="nav-btn" onclick="switchView('gallery')">📂 云端库</button>
         <button class="nav-btn primary" onclick="switchView('editor'); resetEditor()">+ 新建组件</button>
     </div>
 </header>
 
 <main>
-    <!-- 编辑器视图 -->
     <section id="editor-view" class="view-section active">
         <div class="editor-pane">
             <div class="tabs">
@@ -221,153 +69,154 @@
                 <div class="tab" onclick="switchTab('css')">CSS</div>
                 <div class="tab" onclick="switchTab('js')">JS</div>
             </div>
-            
-            <div id="input-html" class="code-area active">
-                <textarea placeholder="<!-- 在这里写 HTML 结构 -->&#10;<button class='btn'>点击我</button>"></textarea>
-            </div>
-            <div id="input-css" class="code-area">
-                <textarea placeholder="/* 在这里写 CSS 样式 */&#10;.btn { background: blue; color: white; }"></textarea>
-            </div>
-            <div id="input-js" class="code-area">
-                <textarea placeholder="// 在这里写 JavaScript 交互&#10;document.querySelector('.btn').onclick = () => alert('Hello!');"></textarea>
-            </div>
-
+            <div id="input-html" class="code-area active"><textarea placeholder="<!-- HTML -->"></textarea></div>
+            <div id="input-css" class="code-area"><textarea placeholder="/* CSS */"></textarea></div>
+            <div id="input-js" class="code-area"><textarea placeholder="// JS"></textarea></div>
             <div class="meta-input">
-                <input type="text" id="comp-title" placeholder="组件名称 (例如: 拟态按钮)">
-                <input type="text" id="comp-tags" placeholder="标签 (用逗号分隔, 例如: #按钮, #蓝色)">
-                <button class="nav-btn primary" style="width: 100%" onclick="saveComponent()">💾 保存组件</button>
+                <input type="text" id="comp-title" placeholder="组件名称">
+                <input type="text" id="comp-tags" placeholder="标签 (#按钮)">
+                <button id="save-btn" class="nav-btn primary" style="width: 100%" onclick="saveComponent()">💾 保存到云端</button>
             </div>
         </div>
-
         <div class="preview-pane">
-            <div id="preview-container">
-                <iframe id="preview-frame"></iframe>
-            </div>
+            <div id="preview-container"><iframe id="preview-frame"></iframe></div>
         </div>
     </section>
 
-    <!-- 画廊视图 -->
     <section id="gallery-view" class="view-section">
         <div style="margin-bottom: 20px;">
-            <h2>所有组件 (<span id="count-display">0</span>)</h2>
+            <h2>云端组件 (<span id="count-display">加载中...</span>)</h2>
         </div>
-        <div class="gallery-grid" id="gallery-grid">
-            <!-- 卡片会由 JS 动态生成 -->
-        </div>
+        <div class="gallery-grid" id="gallery-grid"></div>
     </section>
 </main>
 
 <div id="toast" class="toast">操作成功</div>
 
 <script>
-    // --- 核心逻辑 ---
+    // -----------------------------------------------------------
+    // ⚠️ 步骤 4：请将你的 Supabase URL 和 Key 填入下方引号中
+    // -----------------------------------------------------------
+    const SUPABASE_URL = 'sb_publishable_N0bmeko2jzbi9TO9IT4CHQ_59rsBfBE'; 
+    const SUPABASE_KEY = 'sb_secret_B93VisZz8IWw8YCgUlnWRQ_OUI31zRm'; 
+    // -----------------------------------------------------------
 
-    // 1. 实时预览逻辑
+    // 初始化 Supabase
+    let supabase;
+    try {
+        if (!SUPABASE_URL || !SUPABASE_KEY) {
+            console.warn('请先填写 Supabase 配置');
+        } else {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
+    } catch (e) { console.error(e); }
+
+    // 缓存数据，减少请求
+    let cachedSnippets = [];
+
     const inputs = {
         html: document.querySelector('#input-html textarea'),
         css: document.querySelector('#input-css textarea'),
         js: document.querySelector('#input-js textarea')
     };
-    
+
     function updatePreview() {
         const frame = document.getElementById('preview-frame');
         const doc = frame.contentDocument || frame.contentWindow.document;
-        
-        const html = inputs.html.value;
-        const css = inputs.css.value;
-        const js = inputs.js.value;
-
-        const source = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>${css}</style>
-            </head>
-            <body>
-                ${html}
-                <script>${js}<\/script>
-            </body>
-            </html>
-        `;
-        
         doc.open();
-        doc.write(source);
+        doc.write(`
+            <!DOCTYPE html><html><head><style>${inputs.css.value}</style></head>
+            <body>${inputs.html.value}<script>${inputs.js.value}<\/script></body></html>
+        `);
         doc.close();
     }
 
-    // 监听输入，防抖更新预览
     let timeout;
     Object.values(inputs).forEach(el => {
         el.addEventListener('input', () => {
             clearTimeout(timeout);
-            timeout = setTimeout(updatePreview, 800); // 延迟800ms执行，避免太卡
+            timeout = setTimeout(updatePreview, 800);
         });
     });
 
-    // 2. 保存组件（包含截图）
+    // --- 核心修改：保存到 Supabase ---
     async function saveComponent() {
+        if (!supabase) return alert('请先在代码中配置 Supabase URL 和 Key');
+        
+        const btn = document.getElementById('save-btn');
+        btn.innerText = '正在上传...';
+        btn.disabled = true;
+
         const title = document.getElementById('comp-title').value || '未命名组件';
         const tags = document.getElementById('comp-tags').value;
         
-        // 截图核心：利用 html2canvas 截取 iframe 内容
-        // 注意：由于 iframe 跨域限制，我们这里实际上是把代码临时渲染到一个隐藏的 div 里截图
-        // 为了简化 MVP，我们直接截取 preview-container 的视觉效果
-        
+        // 截图
         const previewEl = document.getElementById('preview-container');
         let thumbData = '';
-        
         try {
-            const canvas = await html2canvas(previewEl, { logging: false, scale: 0.5 }); // 0.5倍率压缩体积
-            thumbData = canvas.toDataURL('image/jpeg', 0.7);
-        } catch (e) {
-            console.error('截图失败', e);
-            thumbData = ''; // 失败则为空，显示默认色块
-        }
+            const canvas = await html2canvas(previewEl, { logging: false, scale: 0.5 });
+            thumbData = canvas.toDataURL('image/jpeg', 0.6);
+        } catch (e) { console.error(e); }
 
-        const component = {
-            id: Date.now(),
-            title,
-            tags,
-            code: {
+        // 插入数据库
+        const { error } = await supabase
+            .from('snippets')
+            .insert([{ 
+                title: title,
+                tags: tags,
                 html: inputs.html.value,
                 css: inputs.css.value,
-                js: inputs.js.value
-            },
-            thumbnail: thumbData,
-            createdAt: new Date().toLocaleDateString()
-        };
+                js: inputs.js.value,
+                thumbnail: thumbData
+            }]);
 
-        // 存入 LocalStorage
-        const saved = JSON.parse(localStorage.getItem('codesnip_data') || '[]');
-        saved.unshift(component); // 新的放前面
-        localStorage.setItem('codesnip_data', JSON.stringify(saved));
-        
-        showToast('✅ 组件已保存');
-        switchView('gallery');
+        btn.innerText = '💾 保存到云端';
+        btn.disabled = false;
+
+        if (error) {
+            console.error(error);
+            alert('保存失败，请检查控制台 (通常是 RLS 没关)');
+        } else {
+            showToast('✅ 已同步到云端');
+            switchView('gallery');
+        }
     }
 
-    // 3. 渲染画廊
-    function renderGallery() {
+    // --- 核心修改：从 Supabase 读取 ---
+    async function renderGallery() {
+        if (!supabase) return;
         const grid = document.getElementById('gallery-grid');
-        const saved = JSON.parse(localStorage.getItem('codesnip_data') || '[]');
-        document.getElementById('count-display').innerText = saved.length;
         
-        grid.innerHTML = saved.map(item => `
+        // 如果是从编辑器切回来，或者第一次加载，就去拉取数据
+        // 简单起见，每次都拉取最新
+        document.getElementById('count-display').innerText = '刷新中...';
+        
+        const { data, error } = await supabase
+            .from('snippets')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            return alert('读取失败');
+        }
+
+        cachedSnippets = data; // 更新本地缓存
+        document.getElementById('count-display').innerText = data.length;
+        
+        grid.innerHTML = data.map(item => `
             <div class="card">
                 <div class="card-thumb" style="background-image: url(${item.thumbnail || ''})">
-                     ${!item.thumbnail ? '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#999">无预览图</div>' : ''}
                     <div class="card-thumb-overlay">
-                        <button class="nav-btn" onclick="loadComponent(${item.id})">✏️ 编辑</button>
+                        <button class="nav-btn" onclick="loadComponent(${item.id})">✏️ 查看</button>
                     </div>
                 </div>
                 <div class="card-body">
                     <div class="card-title">${item.title}</div>
                     <div class="card-tags">
-                        ${item.tags.split(/,|，/).map(t => t.trim() ? `<span class="tag">${t.trim()}</span>` : '').join('')}
+                        ${(item.tags||'').split(/,|，/).map(t => t.trim() ? `<span class="tag">${t.trim()}</span>` : '').join('')}
                     </div>
                     <div class="card-actions">
-                        <button class="btn-sm" onclick="copyCode(${item.id}, 'all')">📋 复制全部</button>
-                        <button class="btn-sm" onclick="copyCode(${item.id}, 'css')">🎨 仅CSS</button>
+                        <button class="btn-sm" onclick="copyCode(${item.id}, 'all')">📋 复制</button>
                         <button class="btn-sm" style="color:red" onclick="deleteComponent(${item.id})">🗑️</button>
                     </div>
                 </div>
@@ -375,26 +224,19 @@
         `).join('');
     }
 
-    // 4. 辅助功能
     function copyCode(id, type) {
-        const saved = JSON.parse(localStorage.getItem('codesnip_data') || '[]');
-        const item = saved.find(i => i.id === id);
+        const item = cachedSnippets.find(i => i.id === id);
         if(!item) return;
-
-        let content = '';
-        if(type === 'css') content = item.code.css;
-        else content = `${item.code.html}\n<style>\n${item.code.css}\n</style>\n<script>\n${item.code.js}\n<\/script>`;
-
-        navigator.clipboard.writeText(content).then(() => showToast('已复制到剪贴板'));
+        const content = `${item.html}\n<style>\n${item.css}\n</style>\n<script>\n${item.js}\n<\/script>`;
+        navigator.clipboard.writeText(content).then(() => showToast('已复制'));
     }
 
     function loadComponent(id) {
-        const saved = JSON.parse(localStorage.getItem('codesnip_data') || '[]');
-        const item = saved.find(i => i.id === id);
+        const item = cachedSnippets.find(i => i.id === id);
         if(item) {
-            inputs.html.value = item.code.html;
-            inputs.css.value = item.code.css;
-            inputs.js.value = item.code.js;
+            inputs.html.value = item.html;
+            inputs.css.value = item.css;
+            inputs.js.value = item.js;
             document.getElementById('comp-title').value = item.title;
             document.getElementById('comp-tags').value = item.tags;
             updatePreview();
@@ -402,23 +244,24 @@
         }
     }
 
-    function deleteComponent(id) {
-        if(!confirm('确定删除这个组件吗？')) return;
-        let saved = JSON.parse(localStorage.getItem('codesnip_data') || '[]');
-        saved = saved.filter(i => i.id !== id);
-        localStorage.setItem('codesnip_data', JSON.stringify(saved));
-        renderGallery();
+    async function deleteComponent(id) {
+        if(!confirm('确定删除？这是云端删除，无法撤销。')) return;
+        
+        const { error } = await supabase.from('snippets').delete().eq('id', id);
+        if (error) {
+            alert('删除失败');
+        } else {
+            showToast('已删除');
+            renderGallery();
+        }
     }
 
-    // --- UI 交互 ---
+    // UI 逻辑
     function switchTab(type) {
         document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.code-area').forEach(el => el.classList.remove('active'));
-        
-        // 找到对应索引的 tab 和 area (简易实现)
         const tabs = ['html', 'css', 'js'];
         const index = tabs.indexOf(type);
-        
         document.querySelectorAll('.tab')[index].classList.add('active');
         document.querySelectorAll('.code-area')[index].classList.add('active');
     }
@@ -426,21 +269,16 @@
     function switchView(view) {
         document.querySelectorAll('.view-section').forEach(el => {
             el.classList.remove('active');
-            // 如果是 Flex 布局则恢复 Flex，否则 Block
             el.style.display = 'none';
         });
-        
         const target = document.getElementById(view + '-view');
         target.classList.add('active');
-        target.style.display = view === 'editor' ? 'flex' : 'flex'; // 这里根据CSS类控制，JS仅辅助
-
+        target.style.display = 'flex';
         if(view === 'gallery') renderGallery();
     }
 
     function resetEditor() {
-        inputs.html.value = '';
-        inputs.css.value = '';
-        inputs.js.value = '';
+        inputs.html.value = ''; inputs.css.value = ''; inputs.js.value = '';
         document.getElementById('comp-title').value = '';
         document.getElementById('comp-tags').value = '';
         updatePreview();
@@ -453,7 +291,7 @@
         t.classList.add('show');
         setTimeout(() => t.classList.remove('show'), 2000);
     }
-
+    
     // 初始化
     updatePreview();
 </script>
